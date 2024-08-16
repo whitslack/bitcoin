@@ -7,7 +7,7 @@
 #
 # Centos Stream 9, EOL in May 2027:
 #  - CMake 3.26.5, https://mirror.stream.centos.org/9-stream/AppStream/x86_64/os/Packages/
-cmake_minimum_required(VERSION 3.22)
+cmake_minimum_required(VERSION 3.25)
 if(POLICY CMP0141)
   # MSVC debug information format flags are selected by an abstraction.
   # We want to use the CMAKE_MSVC_DEBUG_INFORMATION_FORMAT variable
@@ -175,6 +175,10 @@ if(WITH_MULTIPROCESS)
     NAMES Libmultiprocess
   )
 endif()
+
+cmake_dependent_option(WITH_SYSTEM_LEVELDB "Link with system-installed LevelDB." OFF "ENABLE_WALLET" OFF)
+option(WITH_SYSTEM_LIBSECP256K1 "Link with system-installed libsecp256k1." OFF)
+mark_as_advanced(WITH_SYSTEM_LEVELDB WITH_SYSTEM_LIBSECP256K1)
 
 cmake_dependent_option(BUILD_GUI_TESTS "Build test_bitcoin-qt executable." ON "BUILD_GUI;BUILD_TESTS" OFF)
 if(BUILD_GUI)

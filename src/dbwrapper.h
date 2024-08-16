@@ -46,6 +46,8 @@ struct DBParams {
     DBOptions options{};
 };
 
+bool dbwrapper_SanityCheck();
+
 class dbwrapper_error : public std::runtime_error
 {
 public:

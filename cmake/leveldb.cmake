@@ -6,6 +6,36 @@
 # support has been merged we should switch to using the upstream CMake
 # buildsystem.
 
+if(WITH_SYSTEM_LEVELDB)
+
+find_library(LevelDB_LIBRARY leveldb REQUIRED)
+find_library(LevelDB_MemEnv_LIBRARY memenv)
+add_library(leveldb SHARED IMPORTED)
+set_target_properties(leveldb PROPERTIES IMPORTED_LOCATION "${LevelDB_LIBRARY}")
+if(LevelDB_MemEnv_LIBRARY)
+  target_link_libraries(leveldb
+    INTERFACE
+      "${LevelDB_MemEnv_LIBRARY}"
+  )
+endif()
+block()
+  list(APPEND CMAKE_REQUIRED_LIBRARIES leveldb)
+  include(CheckSourceCompiles)
+  check_source_compiles(CXX "
+    #include <leveldb/env.h>
+    #include <leveldb/helpers/memenv.h>
+    int main() {
+      leveldb::Env *myenv = leveldb::NewMemEnv(leveldb::Env::Default());
+      delete myenv;
+    }
+    " LEVELDB_HAS_MEMENV)
+  if(NOT LEVELDB_HAS_MEMENV)
+    message(FATAL_ERROR "System-installed LevelDB lacks required MemEnv component.")
+  endif()
+endblock()
+
+else() # !WITH_SYSTEM_LEVELDB
+
 include(CheckCXXSymbolExists)
 check_cxx_symbol_exists(F_FULLFSYNC "fcntl.h" HAVE_FULLFSYNC)
 
@@ -102,4 +132,11 @@ target_link_libraries(leveldb PRIVATE
 
 set_target_properties(leveldb PROPERTIES
   EXPORT_COMPILE_COMMANDS OFF
+)
+
+endif() # !WITH_SYSTEM_LEVELDB
+
+target_compile_definitions(leveldb
+  INTERFACE
+    EMBEDDED_LEVELDB=$<NOT:$<BOOL:${WITH_SYSTEM_LEVELDB}>>
 )

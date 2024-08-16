@@ -38,6 +38,43 @@ if(WITH_MULTIPROCESS)
   add_subdirectory(ipc)
 endif()
 
+if(WITH_SYSTEM_LIBSECP256K1)
+
+find_package(PkgConfig REQUIRED)
+pkg_check_modules(libsecp256k1 REQUIRED IMPORTED_TARGET libsecp256k1)
+add_library(secp256k1 ALIAS PkgConfig::libsecp256k1)
+block()
+  string(APPEND CMAKE_REQUIRED_FLAGS " ${libsecp256k1_CFLAGS_OTHER}")
+  list(APPEND CMAKE_REQUIRED_INCLUDES ${libsecp256k1_INCLUDE_DIRS})
+  list(APPEND CMAKE_REQUIRED_LINK_OPTIONS ${libsecp256k1_LDFLAGS})
+  list(APPEND CMAKE_REQUIRED_LIBRARIES ${libsecp256k1_LIBRARIES})
+  unset(missing_modules)
+  include(CheckSymbolExists)
+  macro(check_secp256k1_module module symbol)
+    string(TOUPPER "${symbol}" VAR)
+    set(VAR "libsecp256k1_HAS_${VAR}")
+    unset(${VAR})
+    check_symbol_exists("${symbol}" "secp256k1_${module}.h" ${VAR})
+    if(NOT ${VAR})
+      list(APPEND missing_modules "${module}")
+    endif()
+  endmacro()
+  message(CHECK_START "Checking for required libsecp256k1 modules")
+  list(APPEND CMAKE_MESSAGE_INDENT "  ")
+  check_secp256k1_module(ellswift secp256k1_ellswift_encode)
+  check_secp256k1_module(extrakeys secp256k1_xonly_pubkey_parse)
+  check_secp256k1_module(recovery secp256k1_ecdsa_recover)
+  check_secp256k1_module(schnorrsig secp256k1_schnorrsig_verify)
+  list(POP_BACK CMAKE_MESSAGE_INDENT)
+  if(missing_modules)
+    list(JOIN missing_modules ", " missing_modules)
+    message(FATAL_ERROR "System-installed libsecp256k1 lacks these required modules: ${missing_modules}.")
+  endif()
+  message(CHECK_PASS "all were found")
+endblock()
+
+else() # !WITH_SYSTEM_LIBSECP256K1
+
 #=============================
 # secp256k1 subtree
 #=============================
@@ -74,6 +111,8 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS OFF)
 add_subdirectory(secp256k1)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 string(APPEND CMAKE_C_COMPILE_OBJECT " ${APPEND_CPPFLAGS} ${APPEND_CFLAGS}")
+
+endif() # !WITH_SYSTEM_LIBSECP256K1
 
 # Stable, backwards-compatible consensus functionality.
 add_library(bitcoin_consensus STATIC EXCLUDE_FROM_ALL

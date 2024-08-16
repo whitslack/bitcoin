@@ -4,6 +4,7 @@
 
 #include <kernel/checks.h>
 
+#include <dbwrapper.h>
 #include <random.h>
 #include <util/result.h>
 #include <util/translation.h>
@@ -14,6 +15,12 @@ namespace kernel {
 
 util::Result<void> SanityChecks(const Context&)
 {
+#if !EMBEDDED_LEVELDB
+    if (!dbwrapper_SanityCheck()) {
+        return util::Error{Untranslated("Database sanity check failure. Aborting.")};
+    }
+#endif
+
     if (!Random_SanityCheck()) {
         return util::Error{Untranslated("OS cryptographic RNG sanity check failure. Aborting.")};
     }

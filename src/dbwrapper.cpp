@@ -22,7 +22,11 @@
 #include <leveldb/db.h>
 #include <leveldb/env.h>
 #include <leveldb/filter_policy.h>
-#include <leveldb/helpers/memenv/memenv.h>
+#if EMBEDDED_LEVELDB
+# include <leveldb/helpers/memenv/memenv.h>
+#else
+# include <leveldb/helpers/memenv.h>
+#endif
 #include <leveldb/iterator.h>
 #include <leveldb/options.h>
 #include <leveldb/slice.h>
@@ -50,6 +54,29 @@ static void HandleError(const leveldb::Status& status)
     LogPrintf("You can use -debug=leveldb to get more complete diagnostic messages\n");
     throw dbwrapper_error(errmsg);
 }
+
+#if EMBEDDED_LEVELDB
+bool dbwrapper_SanityCheck() { return true; }
+#else
+#include <node/interface_ui.h>
+#include <util/translation.h>
+#include <leveldb/c.h>
+bool dbwrapper_SanityCheck()
+{
+    unsigned long header_version = (leveldb::kMajorVersion << 16) | leveldb::kMinorVersion;
+    unsigned long library_version = (leveldb_major_version() << 16) | leveldb_minor_version();
+
+    if (header_version != library_version) {
+        InitError(Untranslated(strprintf("Compiled with LevelDB %d.%d, but linked with LevelDB %d.%d (incompatible).",
+            leveldb::kMajorVersion, leveldb::kMinorVersion,
+            leveldb_major_version(), leveldb_minor_version()
+        )));
+        return false;
+    }
+
+    return true;
+}
+#endif
 
 class CBitcoinLevelDBLogger : public leveldb::Logger {
 public:
